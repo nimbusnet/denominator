@@ -5,8 +5,11 @@ import static denominator.model.ResourceRecordSets.a;
 import static denominator.model.ResourceRecordSets.cname;
 import static denominator.model.ResourceRecordSets.ns;
 
+import java.util.Map;
+
 import javax.inject.Singleton;
 
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.LinkedListMultimap;
 import com.google.common.collect.ListMultimap;
@@ -15,11 +18,16 @@ import com.google.common.collect.Multimap;
 import dagger.Module;
 import dagger.Provides;
 import denominator.DNSApiManager;
+import denominator.GeoResourceRecordSetApi;
 import denominator.Provider;
+import denominator.ReadOnlyResourceRecordSetApi;
 import denominator.ResourceRecordSetApi;
 import denominator.ZoneApi;
 import denominator.config.NothingToClose;
 import denominator.model.ResourceRecordSet;
+import denominator.model.config.Geo;
+import denominator.model.rdata.AData;
+import denominator.model.rdata.CNAMEData;
 import denominator.model.rdata.SOAData;
 
 /**
@@ -40,6 +48,17 @@ public class MockProvider extends Provider {
 
     @Provides
     ResourceRecordSetApi.Factory provideResourceRecordSetApiFactory(MockResourceRecordSetApi.Factory in) {
+        return in;
+    }
+
+    @Provides
+    ReadOnlyResourceRecordSetApi.Factory provideReadOnlyResourceRecordSetApiFactory(
+            MockReadOnlyResourceRecordSetApi.Factory in) {
+        return in;
+    }
+
+    @Provides
+    GeoResourceRecordSetApi.Factory provideGeoResourceRecordSetApiFactory(MockGeoResourceRecordSetApi.Factory in) {
         return in;
     }
 
@@ -67,6 +86,37 @@ public class MockProvider extends Provider {
         data.put(zoneName, a("www1." + zoneName, 3600, ImmutableSet.of("1.1.1.1", "1.1.1.2")));
         data.put(zoneName, a("www2." + zoneName, 3600, "2.2.2.2"));
         data.put(zoneName, cname("www." + zoneName, 3600, "www1." + zoneName));
+        data.put(zoneName, ResourceRecordSet.<Map<String, Object>> builder()
+                .name("www2.geo.denominator.io.")
+                .type("A")
+                .ttl(300)
+                .add(AData.create("1.1.1.1"))
+                .putConfig("geo", Geo.create("alazona", ImmutableList.of("Alaska", "Arizona")))
+                .build());
+        data.put(zoneName, ResourceRecordSet.<Map<String, Object>> builder()
+                .name("www.geo.denominator.io.")
+                .type("CNAME")
+                .ttl(300)
+                .add(CNAMEData.create("a.denominator.io."))
+                .putConfig("geo", Geo.create("alazona", ImmutableList.of("Alaska", "Arizona")))
+                .build());
+        data.put(zoneName, ResourceRecordSet.<Map<String, Object>> builder()
+                .name("www.geo.denominator.io.")
+                .type("CNAME")
+                .ttl(86400)
+                .add(CNAMEData.create("b.denominator.io."))
+                .putConfig("geo", Geo.create("columbador", ImmutableList.of("Colombia", "Ecuador")))
+                .build());
+        data.put(zoneName, ResourceRecordSet.<Map<String, Object>> builder()
+                .name("www.geo.denominator.io.")
+                .type("CNAME")
+                .ttl(0)
+                .add(CNAMEData.create("c.denominator.io."))
+                .putConfig("geo", Geo.create("antarctica", ImmutableList.<String> builder()
+                                                    .add("Bouvet Island")
+                                                    .add("French Southern Territories")
+                                                    .add("Antarctica").build()))
+                .build());
         return Multimap.class.cast(data);
     }
 }
